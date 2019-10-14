@@ -1,8 +1,12 @@
+Table variables set operators
+
+Set operators: union, intersect, except
+
 e.g. If we want to find all pairs of students who have the same GPA => we need 2 instances of Student table.
 
 SELECT *
 FROM Student S1, Student S2
-WHERE S1.sID = S2.sID       /*explitic join required in SQL
+WHERE S1.sID = S2.sID        /*explitic join required in SQL
 AND S1.GPA = S2.GPA
 AND S1.sID < S2.sID;         /*so we do not match the same person - we want distinct
 
@@ -33,7 +37,56 @@ WHERE Student.sID IN
     
 method 2: JOIN
 
-SELECT Student.sID, sName
+SELECT DISTINCT Student.sID, sName
 FROM Student, Apply
 WHERE Student.sID = Apply.sID 
 AND Apply.major = 'CS';
+
+e.g. Find students who applied to CS but not in EE
+
+SELECT Student.sID, Student.sName
+FROM Student
+WHERE Student.sID IN (
+    SELECT sID
+    FROM Apply
+    WHERE major = 'CS')   /*where Student.sID is among the sID in Apply where major is in CS
+AND                       /*can use AND NOT Student.sID IN as well
+    Student.sID NOT IN (
+    SELECT sID
+    FROM Apply
+    WHERE major = 'EE'); /*where Student.sID is NOT among the sID in Apply where major is in CS
+    
+
+e.g. Find all colleges such that there are some other college in the same state - return name and state
+
+SELECT cName, state
+FROM College C1
+WHERE EXISTS(
+    SELECT *
+    FROM College C2
+    WHERE C2.state = C1.state AND C1.cName <> C2.cName);
+    
+e.g. Finding the college with the largest enrollment (without using MAX) - return college name
+
+SELECT cname
+FROM College C1
+WHERE NOT EXISTS (
+SELECT * FROM College C2
+  WHERE C2.enrollment > C1.enrollment); /*find all college where it does not exist another college whose enrolment is higher than the one we are returning
+
+SQLite does not support ANY. Can always replace ANY with EXISTS or NOT EXISTS.
+Exists test for existence of record. Returns true if it exists.
+
+e.g. Find students not from the smallest high school *CONFUSING
+
+SELECT sID, sName, sizeHS
+FROM Student S1
+WHERE EXISTS (                      /*look for a student, where there exists
+    SELECT * FROM Student S2        /*some other student S2 whose HS is smaller than the student we return
+    WHERE S2.sizeHS < S1.sizeHS); 
+    
+------------------------------------------------------------------
+Subqueries in WHERE Clause
+
+
+
