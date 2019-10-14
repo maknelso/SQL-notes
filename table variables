@@ -1,0 +1,5 @@
+If we want to find all pairs of students who have the same GPA => we need 2 instances of Student table.
+
+FROM Student S1, Student S2
+WHERE S1.sID = S2.sID       /*explitic join required in SQL
+AND S1.sID < S2.sID         /*so we do not match the same person - we want distinct
