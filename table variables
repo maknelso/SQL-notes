@@ -1,5 +1,21 @@
-If we want to find all pairs of students who have the same GPA => we need 2 instances of Student table.
+e.g. If we want to find all pairs of students who have the same GPA => we need 2 instances of Student table.
 
+SELECT *
 FROM Student S1, Student S2
 WHERE S1.sID = S2.sID       /*explitic join required in SQL
-AND S1.sID < S2.sID         /*so we do not match the same person - we want distinct
+AND S1.GPA = S2.GPA
+AND S1.sID < S2.sID;         /*so we do not match the same person - we want distinct
+
+
+e.g. We want all ID of students who applied for major CS and EE
+
+SELECT DISTINCT sID
+FROM Apply A1, Apply A2
+WHERE A1.sID = A2.sID AND A1.major = 'CS' AND A2.major = 'EE';
+
+
+e.g. Find all sID of students hwo applied major CS BUT NOT major EE
+
+SELECT sID FROM Apply where major = 'CS'
+EXCEPT
+SELECT sID FROM Apply wher major = 'EE';
