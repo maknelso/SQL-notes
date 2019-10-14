@@ -19,3 +19,21 @@ e.g. Find all sID of students hwo applied major CS BUT NOT major EE
 SELECT sID FROM Apply where major = 'CS'
 EXCEPT
 SELECT sID FROM Apply wher major = 'EE';
+
+
+e.g Find IDs and names of all students who applied to major in CS at some college (2 methods):
+
+method 1: subquery:
+SELECT sID, sName 
+FROM Student
+WHERE Student.sID IN
+  (SELECT sID 
+    FROM Apply
+    WHERE major = 'CS');
+    
+method 2: JOIN
+
+SELECT Student.sID, sName
+FROM Student, Apply
+WHERE Student.sID = Apply.sID 
+AND Apply.major = 'CS';
