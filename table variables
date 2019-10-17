@@ -6,34 +6,44 @@ e.g. If we want to find all pairs of students who have the same GPA => we need 2
 
 SELECT *
 FROM Student S1, Student S2
-WHERE S1.sID = S2.sID        /*explitic join required in SQL
-AND S1.GPA = S2.GPA
-AND S1.sID < S2.sID;         /*so we do not match the same person - we want distinct
+WHERE S1.GPA = S2.GPA        /*explitic join required in SQL */
+AND S1.sID < S2.sID;         /*so we do not match the same person - we want distinct. List the one with the smallest sID first */
 
 
 e.g. We want all ID of students who applied for major CS and EE
 
-SELECT DISTINCT sID
+SELECT DISTINCT A1.sID
 FROM Apply A1, Apply A2
-WHERE A1.sID = A2.sID AND A1.major = 'CS' AND A2.major = 'EE';
+WHERE A1.sID = A2.sID                     /* make sure they are the same student */
+AND A1.major = 'CS' AND A2.major = 'EE';  /* one case they applied CS, another case they applied EE */
 
 
-e.g. Find all sID of students hwo applied major CS BUT NOT major EE
+e.g. Find all sID of students who applied major CS BUT NOT major EE
 
-SELECT sID FROM Apply where major = 'CS'
+SELECT sID FROM Apply WHERE major = 'CS'
 EXCEPT
-SELECT sID FROM Apply wher major = 'EE';
+SELECT sID FROM Apply WHERE major = 'EE';
+
+SELECT DISTINCT A1.sID 
+FROM Apply A1, Apply A2
+WHERE A1.major = 'CS'
+AND A2.major <> 'EE';
+
+-----------------------------------------------------------------------------------------------------------
+Subqueries in WHERE clause
 
 
 e.g Find IDs and names of all students who applied to major in CS at some college (2 methods):
 
-method 1: subquery:
-SELECT sID, sName 
+method 1: subquery
+
+SELECT sID, sName
 FROM Student
-WHERE Student.sID IN
-  (SELECT sID 
+WHERE Student.sID IN (        /* WHERE _____ IN is the subquery intro */
+    SELECT sID 
     FROM Apply
-    WHERE major = 'CS');
+    WHERE major = 'CS'
+);
     
 method 2: JOIN
 
@@ -42,30 +52,57 @@ FROM Student, Apply
 WHERE Student.sID = Apply.sID 
 AND Apply.major = 'CS';
 
-e.g. Find students who applied to CS but not in EE
 
-SELECT Student.sID, Student.sName
+/* Why do we care about duplicates? E.g. If we have two Craigs (sName) but they are different people sID are different.
+If we SELECT DISTINCT on sID, both Craigs will show up, but if we SELECT DISTINCT on sName, only one Craig will show up). */
+
+/* E.g. duplicates are important: average GPA of CS applicants */
+
+SELECT GPA
 FROM Student
 WHERE Student.sID IN (
-    SELECT sID
+    SELECT Apply.sID
     FROM Apply
-    WHERE major = 'CS')   /*where Student.sID is among the sID in Apply where major is in CS
-AND                       /*can use AND NOT Student.sID IN as well
-    Student.sID NOT IN (
-    SELECT sID
-    FROM Apply
-    WHERE major = 'EE'); /*where Student.sID is NOT among the sID in Apply where major is in CS
+    WHERE major = 'CS');
     
+/* e.g. find students who applied to major CS but not to major EE */
 
+SELECT sID, sName
+FROM Student                  /* looks for a student
+WHERE Student.sID IN (        /* where the student ID is among the set of ID
+    SELECT sID                    of students who applied to CS
+    FROM Apply
+    WHERE major = 'CS')
+AND Student.sID NOT IN (      /* but student ID is NOT among the set of ID 
+    SELECT sID                  of students who applied to EE
+    FROM Apply
+    Where major = 'EE');
+
+or we can write
+
+SELECT sID, sName
+FROM Student                  
+WHERE Student.sID IN (        
+    SELECT sID                    
+    FROM Apply
+    WHERE major = 'CS')
+AND NOT Student.sID IN (      /* AND NOT Student.sID IN instead of AND Student.sID NOT IN
+    SELECT sID                 
+    FROM Apply
+    Where major = 'EE');
+    
 e.g. Find all colleges such that there are some other college in the same state - return name and state
 
 SELECT cName, state
 FROM College C1
-WHERE EXISTS(
+WHERE EXISTS(                                  /* for each college, check does it exist another college C2 where the state of C1 = C2 */
     SELECT *
     FROM College C2
     WHERE C2.state = C1.state AND C1.cName <> C2.cName);
-    
+
+/* This is known as a correlated substance: inside the subquery, we are going to refer to a value C1 that comes from outside the subquery */
+
+
 e.g. Finding the college with the largest enrollment (without using MAX) - return college name
 
 SELECT cname
@@ -86,7 +123,52 @@ WHERE EXISTS (                      /*look for a student, where there exists
     WHERE S2.sizeHS < S1.sizeHS); 
     
 ------------------------------------------------------------------
-Subqueries in WHERE Clause
+Subqueries in FROM and SELECT clauses
+
+Above, we used subqueries in the WHERE = condition for comparison
+
+Can use subqueries in:
+
+SELECT  - writing a sub-select expression that produces the value that comes out of the query
+FROM    - running a nested select stmt that is going to generate one of the table that we will use in the rest of the query
+
+/* e.g. return all students whose scaled GPA changes GPA by more than 1 */
+
+SELECT sID, sName, GPA, GPA*(sizeHS/1000.0) AS scaledGPA
+FROM Student
+WHERE GPA*(sizeHS/1000.0) - GPA > 1.0
+OR
+GPA - GPA*(sizeHS/1000.0) > 1.0;
+
+to simplify:
+
+SELECT sID, sName, GPA, GPA*(sizeHS/1000.0) AS scaledGPA
+FROM Student
+WHERE abs(GPA*(sizeHS/1000.0) - GPA) > 1.0;
+
+to simplify further: put subquery in FROM clause. Create a select from where
+that produces a relation, and the rest of the query can treat that just
+as a relation so we can refer to it.
+
+SELECT *
+FROM (SELECT sID, sName, GPA, GPA*(sizeHS/1000.0) AS scaledGPA
+FROM Student) G                                                /*turn it into its own subquery and put it in FROM clause and call it G
+WHERE abs(G.scaled GPA - GPA) > 1.0;
+
+/* this says compute the from where expression and call the result G 
+and now in the rest of the query, anytime I refer to G, I refer to the 
+result of the subquery in the FROM. Specifically, I now have scaled GPA.
+And I can use that scaled GPA in the rest of my query.
+
+
+
+
+
+
+
+
+
+
 
 
 
