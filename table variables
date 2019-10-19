@@ -158,11 +158,60 @@ WHERE abs(G.scaled GPA - GPA) > 1.0;
 /* this says compute the from where expression and call the result G 
 and now in the rest of the query, anytime I refer to G, I refer to the 
 result of the subquery in the FROM. Specifically, I now have scaled GPA.
-And I can use that scaled GPA in the rest of my query.
+And I can use that scaled GPA in the rest of my query.*/
 
 
+/* subquery in the select clause */ HARD
 
+Find colleges and pair those colleges with the highest GPA of their applicants.
+Return college name, state and GPA of students.
 
+SELECT DISTINCT College.cName, College.state, Student.GPA
+FROM College, Apply, Student 
+WHERE College.cName = Apply.cName
+AND Apply.sID = Student.sID
+AND GPA >= ALL (                  */where GPA is the highest among the GPAs of the students who applied to that same college
+    SELECT Student.GPA 
+    FROM Student, Apply
+    WHERE Student.sID = Apply.sID
+    AND Apply.cName = College.cName);
+
+/* The ANY operator returns true if any of the subquery values meet the condition.
+The ALL operator returns true if all of the subquery values meet the condition. */
+
+/*Now lets re-write this query using a sub-query in the SELECT clause 
+What a subquery in a SELECT clause does is performs a computation and as long as thee computation returns exactly one value, that value
+is used in the result tuple.
+*/
+
+HARD
+
+SELECT cName, state,(
+    SELECT DISTINCT GPA
+    FROM Apply, Student
+    WHERE College.cName = Apply.cName
+        AND Apply.sID = Student.sID
+        AND GPA >= ALL (
+            SELECT GPA FROM Student, Apply
+            WHERE Student.sID = Apply.sID
+                AND Apply.cName = College.cName)) AS GPA
+FROM College;
+
+/* Instead of pairing every college with the highest GPA of the applicants, we want to pair college
+with names of the applicants */
+
+SELECT cName, state,(
+    SELECT DISTINCT sName
+    FROM Apply, Student
+    WHERE College.cName = Apply.cName
+        AND Apply.sID = Student.sID) AS sName
+FROM College;
+
+-> ERROR: the SELECT subquery did not return exactly one result. In this case
+we have several students apply to colleges, so wouldn't know when we have a bunch of values
+which one to put in the tuple being constructed. 
+
+ERROR message says: Subquery returns more than 1 row.
 
 
 
