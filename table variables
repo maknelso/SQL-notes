@@ -213,6 +213,176 @@ which one to put in the tuple being constructed.
 
 ERROR message says: Subquery returns more than 1 row.
 
+--------------------------------------------------------------------------------------------------------
+The JOIN family of operators 
+
+We have implicit and also explicit JOIN tables.
+
+- Inner Join on condition
+- Natural join (eliminates duplicates columns created)
+- Inner join USING (attrs) 
+- Left | Right | Full Outer Join
+
+Using comma to join is a cross product
+
+e.g. SELECT * 
+     FROM Apply, Student, College
+
+Natural join example:
+SELECT DISTINCT sName, major
+FROM Student, Apply
+WHERE Student.sID = Apply.sID;
+
+Theta join (inner join) example:
+
+SELECT DISTINCT sName, major
+FROM Student INNER JOIN Apply       /*JOIN is an abbreviation for INNER JOIN - can delete INNER */
+ON Student.sID = Apply.sID          /*Use JOIN ON instead of WHERE */
+
+
+e.g. Find name and GPA of student whose HS is less than 1000, major is in CS and went to Stanford
+
+SELECT sName, GPA
+FROM Student JOIN Apply
+ON Student.sID = Apply.sID
+AND sizeHS < 1000 AND major = 'CS' AND cName 'Stanford';
+
+
+*When do we use WHEN or AND?
+
+AND condition - if we put all the conditions "AND sizeHS < 1000 AND major = 'CS' AND cName 'Stanford'"
+in the ON condition, we are saying, as the query processor does the JOIN,
+it should be applying all the conditions. 
+
+WHERE condition - says, here's the condition that really applies to the combination of the tuples
+and the rest of the conditions apply to the separate attributes.
+
+e.g. Find a bunch of information about student applications. Join all three of our tables.
+
+SELECT Apply.sID, sName, GPA, Apply.cName, enrollment
+FROM Apply JOIN Student JOIN College
+ON Apply.sID = Student.sID AND Apply.cName = College.cName;
+
+
+With postgresql (cannot do 3 way join):
+
+SELECT Apply.sID, sName, GPA, Apply.cName, enrollment
+FROM (Apply JOIN Student ON Apply.sID = Student.sID) JOIN College        /*postgresql does not allow 3 way joins, otherwise can just do JOIN JOIN */
+ON Apply.cName = College.cName;
+
+Interaction between expression of a query in SQL and the query processor
+
+SQL systems do tend to actually follow the structure that is provided when we have join operators and we parenthesize them
+People do tune SQL to enhance performance by changing order around.
+
+
+*Natural join takes two relations that have column names in common and performs a 
+cross product that only keeps the tuples that have the same value in those
+common attribute names.
+
+e.g. 
+SELECT DISTINCT sName, major
+FROM Student NATURAL JOIN Apply;
+
+is the same as:
+
+SELECT DISTINCT sName, major
+FROM Student INNER JOIN Apply
+ON Student.sID = Apply.sID;
+
+
+e.g.
+
+SELECT sName, GPA
+FROM Student NATURAL JOIN Apply
+WHERE sizeHS < 1000 AND major = 'CS' and cName = 'Stanford';
+
+
+e.g. 
+There a feature in SQL that is considered better practice than using the natural join
+and it's called the USING clause.
+
+USING - explicitly lists the attributes that should be equated across the relations.
+
+SELECT sName, GPA
+FROM Student JOIN Apply USING(sID)          /* we can only use the USING clause on attributes that appear in both relations */
+WHERE sizeHS < 1000 AND major = 'CS' and cName = 'Stanford';
+
+
+e.g. Combine two instances of the student relation in order to find paris of students that have same GPA
+
+SELECT S1.sID, S1.sName, S1.GPA, S2.SID, S2.sName, S2.GPA
+FROM Student S1 JOIN Student S2 USING(GPA)
+WHERE S1.sID < S2.sID               /*most SQL systems do not allow you to use USING and JOIN ON */
+
+e.g. Get the Student relation
+
+SELECT * 
+FROM Student S1 natural JOIN Student S2;
+
+e.g. Outer join
+
+e.g. Information about students who have not applied anywhere yet
+
+SELECT sName, sID, cName, major
+FROM Student LEFT JOIN Apply using(sID); /* LEFT JOIN = LEFT OUTER JOIN */
+
+SELECT sName, sID, cName, major
+FROM Student NATURAL LEFT JOIN Apply; /*implicitly (or natural) join Student with Apply on sID - not recommended */
+
+
+e.g. Can re-write the outer join without using outer join
+
+SELECT sName, Student.sID, cName, major
+FROM Student, Apply                 /*inner join of Student and Apply so all tuples matches*/
+WHERE Student.sID = Apply.sID       /*cross product form */
+UNION                               /*add to that result - union of the result
+SELECT sName, sID, NULL, NULL       /* return sName, sID, NULL and NULL
+FROM Student                        /*Student tuple
+WHERE sID NOT IN (                  /*that don't have a matching tuple in Apply
+    SELECT sID                      /*sID that does not appear in the Apply
+    FROM Apply
+);
+
+e.g. RIGHT OUTER JOIN:
+
+SELECT sName, sID, cName, major
+FROM Student NATURAL RIGHT OUTER JOIN Apply;
+
+e.g. Unmatched tuples from both LEFT AND RIGHT in our result (full outer join):
+
+SELECT sName, sID, cName, major
+FROM Student FULL OUTER JOIN Apply USING(sID);
+
+e.g. Can express full outer join using combination of left and right outer join:
+
+SELECT sName, sID, cName, major
+FROM Student LEFT OUTER JOIN Apply USING(sID)
+UNION                                           /* UNION auto removes duplicates */
+SELECT sName, sID, cName, major
+FROM Student RIGHT OUTER JOIN Apply USING(sID)
+
+e.g. Can simulate without using any JOINs at all - 3 parts:
+
+SELECT sName, Student.sID, cName, major
+FROM Student, Apply                     /*find all of the matching student and apply records
+WHERE Student.sID = Apply.sID
+UNION
+SELECT sName, sID, NULL, NULL
+FROM Student                             /*adds those students who are not in apply
+WHERE sID NOT IN (SELECT sID FROM Apply)
+UNION
+SELECT NULL, sID, cName, major      
+FROM Apply
+WHERE sID NOT IN (SELECT sID FROM Student); /*find those apply records where there's not a matching student */
+
+
+e.g.
+Commutativity (A op B) = (B op A)       /*most joins are like that except left and right outer join
+Associativity (A op B) op C = A op (B op C)         /*can do in any order first - OUTER JOIN is not associative 
+
+-----------------------------------------------------------------
+Aggregation
 
 
 
