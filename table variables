@@ -163,8 +163,8 @@ And I can use that scaled GPA in the rest of my query.*/
 
 /* subquery in the select clause */ HARD
 
-Find colleges and pair those colleges with the highest GPA of their applicants.
-Return college name, state and GPA of students.
+/*Find colleges and pair those colleges with the highest GPA of their applicants.
+Return college name, state and GPA of students.*/
 
 SELECT DISTINCT College.cName, College.state, Student.GPA
 FROM College, Apply, Student 
@@ -180,7 +180,7 @@ AND GPA >= ALL (                  */where GPA is the highest among the GPAs of t
 The ALL operator returns true if all of the subquery values meet the condition. */
 
 /*Now lets re-write this query using a sub-query in the SELECT clause 
-What a subquery in a SELECT clause does is performs a computation and as long as thee computation returns exactly one value, that value
+What a subquery in a SELECT clause does is performs a computation and as long as the computation returns exactly one value, that value
 is used in the result tuple.
 */
 
@@ -196,6 +196,8 @@ SELECT cName, state,(
             WHERE Student.sID = Apply.sID
                 AND Apply.cName = College.cName)) AS GPA
 FROM College;
+
+*Seems like SQLiteStudio cannot perform ALL function
 
 /* Instead of pairing every college with the highest GPA of the applicants, we want to pair college
 with names of the applicants */
