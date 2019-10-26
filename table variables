@@ -197,7 +197,7 @@ SELECT cName, state,(
                 AND Apply.cName = College.cName)) AS GPA
 FROM College;
 
-*Seems like SQLiteStudio cannot perform ALL function
+*Seems like SQLiteStudio cannot perform ALL function. Maybe we can use ANY
 
 /* Instead of pairing every college with the highest GPA of the applicants, we want to pair college
 with names of the applicants */
