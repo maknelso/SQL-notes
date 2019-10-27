@@ -386,8 +386,232 @@ Associativity (A op B) op C = A op (B op C)         /*can do in any order first 
 -----------------------------------------------------------------
 Aggregation
 
+Agg performs computations over sets of values in multiple rows of a relation.
+
+MIN, AMX, SUM, AVG, COUNT
+
+appear in SELECT clause initially. 
+
+GROUP BY columns 
+HAVING conditions - test filters on results of aggregate values - apply to groups that we gwenerate from GROUP BY clause
+
+e.g. 
+
+SELECT AVG(GPA)
+FROM Student;
+
+e.g. Find min GPA of students who applied in CS
+
+SELECT MIN(GPA)
+FROM Student, Apply
+WHERE Student.sID = Apply.sID AND major = 'CS';
+
+*do not want to count GPA twice if a student applied to CS 2+ at different schools
+presumably, we want to only count each student's GPA once no matter how many times they applied
+
+Use subquery form instead.
+
+Lets see how many students applied to CS first:
+
+1st:
+SELECT *
+FROM Student
+WHERE sID IN(
+    SELECT sID 
+    FROM Apply
+    WHERE major = 'CS'
+);
+
+Lets take the average GPA second:
+
+2nd:
+SELECT AVG(GPA)
+FROM Student
+WHERE sID IN(
+    SELECT sID
+    FROM Apply
+    WHERE major = 'CS'
+);
+
+e.g. COUNT function - returns the number of tuples in the result
+
+1st - run it without the aggregate function - we see there are 2:
+
+SELECT *
+FROM College
+WHERE enrollment > 15000;
+
+SELECT COUNT(*)
+FROM College
+WHERE enrollment > 15000;
+
+e.g. find number of students who have applied to Cornell
+
+SELECT COUNT (*)
+FROM Apply
+WHERE cName = 'Cornell';
+
+*we actually jsut counted the number of applications to Cornell.
+If a student applied 3 times, we are counting it 3 times in the result.
+
+SELECT COUNT (DISTINCT sID)
+FROM Apply
+WHERE cName = 'Cornell';
+
+*this returns 3 distinct student IDs - COUNT DISTINCT is very useful
+
+e.g. Gives us all students such that number of other students with same GPA
+is equal to number of other students with same sizeHS
+
+SELECT *
+FROM Student S1     /*looks at student relation
+WHERE (SELECT COUNT (*) FROM Student S2     /*for each student, count number of other students in S2 by testing ID is different, that have same GPA 
+       WHERE S2.sID <> S1.sID AND S2.GPA = S1.GPA) =
+      (SELECT COUNT(*) FROM Student S2      /*also counts the number of other students that have same size HS and if thsoe two values  
+       WHERE S2.sID <> S1.sID AND S2.sizeHS = S1.sizeHS);
+
+*both subqueries produce a single value, which is why we can test equality
 
 
+e.g. computer amount by which average GPA of students applying to CS 
+exceeds the average GPA of students NOT applying to CS - seems hard
+
+SELECT CS.avgGPA - nonCS.avgGPA
+FROM (            /*subquery in the FROM clause - allows you to write a SELECT FROM WHERE expression and use the result of the expression as if it were an actual table in the database    
+        SELECT AVG(GPA) as avgGPA
+        FROM Student
+        WHERE sID IN (                /*find the students who have applied to major in CS, computer their average GPA and call it avgGPA. We'll take the whole result and name it CS.
+                        SELECT sID
+                        FROM Apply WHERE major = 'CS')) AS CS,
+      (
+        SELECT AVG(GPA) as avgGPA   /*computer avgGPA of students who did not apply to CS (NOT IN) the set of students who applied to CS. And we'll call that one nonCS 
+        FROM Student
+        WHERE sID NOT IN(
+                          SELECT sID 
+                           FROM Apply WHERE major = 'CS)) AS nonCS;
+
+*computer 2 subquery in the FROM clause. One of them is the avgGPA of CS applicant, and one of them is avgGPA of non CS applicant
+*now with this FROM clause, we have a relation call CS with an attribute called average GPA and a relation
+called non CS with an attribute called average GPA. And in the SELECT clause, we'll just subtract it.
+
+*we can re-write this with the subquery in the SELECT clause. In the SELECT clause,
+we can write a subquery as long as it returns a single value.
+
+SELECT DISTINCT(
+    SELECT avg(GPA) as avgGPA       /*average GPA of CS student in SELECT clause producing a value
+    FROM Student
+    WHERE sID IN(
+        SELECT sID
+        FROM Apply
+        WHERE major = 'CS')) -
+    (SELECT avg(GPA) as avgGPA FROM Student     /*avg GPA of NON CS student 
+     WHERE sID NOT IN(
+        SELECT sID FROM Apply WHERE major = 'CS')) AS d   /*call the result of the subtraction as d for difference
+FROM Student;
+        
+*perform subtraction as part of the SELECT clause 
+- reason for duplicates is because we computed this result once for each tuple in Student.
+
+GROUP BY clause - only use in conjunction with aggregation
+
+takes a relationa nd partitions it by value
+
+e.g. find number of applications to each college
+
+SELECT cName, COUNT(*)
+FROM Apply          /*taking apply relations and breaking into groups where each group has one of the college names (e.g. Stanford, Berkeley) and for each group will return one tuple in the result
+GROUP BY cName;
+
+
+e.g. find total enrollment of college students for each state
+
+SELECT state, SUM(enrollment)
+FROM College                /*takes college relation and breaks it by state and then within each group, return state for that partition and suim of the enrollment 
+GROUP BY state;
+
+e.g. for each college and major combination, the min and amx GPAs for the student who have applied to that college
+
+SELECT cName, major, MIN(GPA), MAX(GPA)
+FROM Student, Apply
+WHERE Student.sID = Apply.sID
+GROUP BY cName, major;
+
+e.g. find diff between min and max of GPA (spread) or find largest spread 
+
+SELECT MAX(mx-mn)
+FROM (SELECT cName, major, MIN(GPA) AS mn, MAX(GPA) AS mx
+      FROM Student, Apply
+      WHERE Student.sID = Apply.sID
+      GROUP BY cName, major) M;
+
+e.g. this example is to show subtleties of the group by clause 
+query finds the number of colleges that have been applied to by each student.
+
+SELECT Student.sID, sName, COUNT(DISTINCT cNAME)
+FROM Student, Apply
+WHERE Student.sID = Apply.sID
+GROUP BY Student.sID
+
+*if we choose to select an attribute that is not in the one of the grouping
+attributes, then it chooses a random value
+
+*there may be students who have not applied to any colleges, and they will not be 
+represented in the results because they will not be in the result of the join
+
+SELECT Student.sID, COUNT(DISTINCT cName)
+FROM Student, Apply
+WHERE Student.sID = Apply.sID 
+GROUP BY Student.sID
+UNION
+SELECT sID, 0                   /*students that have not applied to any colleges will return 0
+FROM Student
+WHERE Student.sID NOT IN (SELECT sID FROM Apply);
+
+
+e.g. HAVING clause - only used in conjunction with aggregation
+*HAVING clause allows us to apply conditions to the results of aggregate functions
+HAVING clause is entire group
+WHERE applies to one tuple at a time
+
+Find colleges with fewer than 5 applications
+
+SELECT cName
+FROM Apply
+GROUP BY cName
+HAVING COUNT(*) < 5;
+
+*can write without having and group by clause
+
+SELECT DISTINCT cName
+FROM Apply A1       /*looking at each application record
+WHERE 5 > (SELECT COUNT(*) FROM Apply A2 WHERE A2.cName = A1.cName); /*check number of other application to same college and count them and see if the number is less than 5
+
+*can re-write every GROUP BY and HAVING without using them
+
+e.g. Fewer than 5 applicants (not application) - instead of counting the # of apply
+tuples for each college, count # of distinct student ID that appear in the group of apply tuple for that college
+
+SELECT cName
+FROM Apply
+GROUP BY cName
+HAVING COUNT (DISTINCT sID) < 5;
+
+*Cornell has at least 5 applications but fewer than 5 applicants.... 
+
+
+e.g. Find all majors represented in the DB where the applicant's max GPA is below the average
+
+SELECT major
+FROM Student, Apply
+WHERE Student.sID = Apply.sID
+GROUP BY major     /*look at major one at a time
+HAVING MAX (GPA) < (SELECT AVG(GPA) FROM Student);
+
+bioengineering and psychology has applicants whose highest GPA is lower than the average GPA
+
+
+----------------
+NULL values
 
 
 
