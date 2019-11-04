@@ -39,12 +39,14 @@ method 1: subquery
 
 SELECT sID, sName
 FROM Student
-WHERE Student.sID IN (        /* WHERE _____ IN is the subquery intro */
-    SELECT sID 
-    FROM Apply
-    WHERE major = 'CS'
+WHERE sID IN (                      /* Student.sID IN Apply.sID */
+               SELECT sID           /*subquery finds the sID of all the students who applied to major CS*/
+               FROM Apply
+               WHERE major = 'CS'
 );
-    
+
+*outer query, lets take that sID and lets select their sID and sName. IN - sID in sID
+
 method 2: JOIN
 
 SELECT DISTINCT Student.sID, sName
@@ -65,18 +67,20 @@ WHERE Student.sID IN (
     FROM Apply
     WHERE major = 'CS');
     
+*only subquery version gives us the correct values; the join version does not give us the correct values
+    
 /* e.g. find students who applied to major CS but not to major EE */
 
 SELECT sID, sName
-FROM Student                  /* looks for a student
-WHERE Student.sID IN (        /* where the student ID is among the set of ID
-    SELECT sID                    of students who applied to CS
-    FROM Apply
-    WHERE major = 'CS')
-AND Student.sID NOT IN (      /* but student ID is NOT among the set of ID 
-    SELECT sID                  of students who applied to EE
-    FROM Apply
-    Where major = 'EE');
+FROM Student                                         /* looks for a student
+WHERE Student.sID IN (                               /* where the student ID is among the set of ID
+                      SELECT sID                        of students who applied to CS
+                      FROM Apply
+                      WHERE major = 'CS')
+AND Student.sID NOT IN (                             /* but student ID is NOT among the set of ID 
+                      SELECT sID                        of students who applied to EE
+                      FROM Apply
+                      Where major = 'EE');
 
 or we can write
 
@@ -91,7 +95,10 @@ AND NOT Student.sID IN (      /* AND NOT Student.sID IN instead of AND Student.s
     FROM Apply
     Where major = 'EE');
     
-e.g. Find all colleges such that there are some other college in the same state - return name and state
+    
+e.g. Find all colleges such that there are some other college in the same state - return name and state. *We use EXIST to test
+whether the subquery is empty or not empty rather than checking whether the values are in the subquery (IN). 
+Correlated reference = inside the subquery, we will refer to a value C1, that comes from outside the subquery.
 
 SELECT cName, state
 FROM College C1
@@ -100,19 +107,27 @@ WHERE EXISTS(                                  /* for each college, check does i
     FROM College C2
     WHERE C2.state = C1.state AND C1.cName <> C2.cName);
 
-/* This is known as a correlated substance: inside the subquery, we are going to refer to a value C1 that comes from outside the subquery */
 
-
-e.g. Finding the college with the largest enrollment (without using MAX) - return college name
+e.g. Find the college with the largest enrollment (without using MAX) - return college name
 
 SELECT cname
 FROM College C1
 WHERE NOT EXISTS (
-SELECT * FROM College C2
-  WHERE C2.enrollment > C1.enrollment); /*find all college where it does not exist another college whose enrolment is higher than the one we are returning
+                  SELECT * FROM College C2
+                  WHERE C2.enrollment > C1.enrollment); /*find all college where it does not exist another college whose enrollment is higher than the one we are returning
 
-SQLite does not support ANY. Can always replace ANY with EXISTS or NOT EXISTS.
 Exists test for existence of record. Returns true if it exists.
+
+e.g. (1) Find student with the highest GPA
+
+SELECT sID, sName, GPA
+FROM Student S1
+WHERE NOT EXISTS(
+                 SELECT *
+                 FROM Student S2
+                 WHERE S2.GPA > S1.GPA);
+                 
+e.g. (2) Lets see if we can write the above query without using a sub-query, we will need some type of JOIN.         
 
 e.g. Find students not from the smallest high school *CONFUSING
 
@@ -122,7 +137,7 @@ WHERE EXISTS (                      /*look for a student, where there exists
     SELECT * FROM Student S2        /*some other student S2 whose HS is smaller than the student we return
     WHERE S2.sizeHS < S1.sizeHS); 
     
-------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
 Subqueries in FROM and SELECT clauses
 
 Above, we used subqueries in the WHERE = condition for comparison
@@ -157,11 +172,11 @@ WHERE abs(G.scaled GPA - GPA) > 1.0;
 
 /* this says compute the from where expression and call the result G 
 and now in the rest of the query, anytime I refer to G, I refer to the 
-result of the subquery in the FROM. Specifically, I now have scaled GPA.
-And I can use that scaled GPA in the rest of my query.*/
+result of the subquery in the FROM. Specifically, I now have scaledGPA.
+And I can use that scaled GPA in the rest of my query. Before I do the subquery, I cannot use scaledGPA*/
 
 
-/* subquery in the select clause */ HARD
+/* subquery in the select clause */ harder
 
 /*Find colleges and pair those colleges with the highest GPA of their applicants.
 Return college name, state and GPA of students.*/
@@ -170,7 +185,7 @@ SELECT DISTINCT College.cName, College.state, Student.GPA
 FROM College, Apply, Student 
 WHERE College.cName = Apply.cName
 AND Apply.sID = Student.sID
-AND GPA >= ALL (                  */where GPA is the highest among the GPAs of the students who applied to that same college
+AND GPA >= ALL (                  /*where GPA is the highest among the GPAs of the students who applied to that same college*/
     SELECT Student.GPA 
     FROM Student, Apply
     WHERE Student.sID = Apply.sID
@@ -184,33 +199,34 @@ What a subquery in a SELECT clause does is performs a computation and as long as
 is used in the result tuple.
 */
 
-HARD
+HARDER
 
 SELECT cName, state,(
-    SELECT DISTINCT GPA
-    FROM Apply, Student
-    WHERE College.cName = Apply.cName
-        AND Apply.sID = Student.sID
-        AND GPA >= ALL (
-            SELECT GPA FROM Student, Apply
-            WHERE Student.sID = Apply.sID
-                AND Apply.cName = College.cName)) AS GPA
+                     SELECT DISTINCT GPA                 /*just want to return highest GPA - for the subquery SELECT*/
+                     FROM Apply, Student                 /*do not need the college table anymore, but doesn't seem to affect the result*/
+                     WHERE College.cName = Apply.cName
+                     AND Apply.sID = Student.sID
+                     AND GPA >= ALL(
+                                    SELECT GPA 
+                                    FROM Student, Apply
+                                    WHERE Student.sID = Apply.sID
+                                    AND Apply.cName = College.cName)
+                    ) AS GPA                                            /*call the whole subquery GPA*/
 FROM College;
 
-*Seems like SQLiteStudio cannot perform ALL function. Maybe we can use ANY
-
-/* Instead of pairing every college with the highest GPA of the applicants, we want to pair college
-with names of the applicants */
+e.g. Instead of pairing every college with the highest GPA of the applicants, we want to pair college
+with names of the applicants
 
 SELECT cName, state,(
-    SELECT DISTINCT sName
-    FROM Apply, Student
-    WHERE College.cName = Apply.cName
-        AND Apply.sID = Student.sID) AS sName
+                    SELECT DISTINCT sName
+                    FROM Apply, Student
+                    WHERE College.cName = Apply.cName
+                    AND Apply.sID = Student.sID
+                    ) AS sName
 FROM College;
 
--> ERROR: the SELECT subquery did not return exactly one result. In this case
-we have several students apply to colleges, so wouldn't know when we have a bunch of values
+-> ERROR: the SELECT subquery did not return exactly one value. In this case
+we have several students apply to colleges, so wouldn't know when we have a bunch of values in the result
 which one to put in the tuple being constructed. 
 
 ERROR message says: Subquery returns more than 1 row.
