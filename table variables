@@ -118,7 +118,7 @@ WHERE NOT EXISTS (
 
 Exists test for existence of record. Returns true if it exists.
 
-e.g. (1) Find student with the highest GPA
+e.g. (1) Find student with the highest GPA - using SUBQUERY
 
 SELECT sID, sName, GPA
 FROM Student S1
@@ -126,17 +126,111 @@ WHERE NOT EXISTS(
                  SELECT *
                  FROM Student S2
                  WHERE S2.GPA > S1.GPA);
-                 
+           
+           
 e.g. (2) Lets see if we can write the above query without using a sub-query, we will need some type of JOIN.         
 
-e.g. Find students not from the smallest high school *CONFUSING
+SELECT DISTINCT S1.sName, S1.GPA
+FROM Student S1, Student S2
+WHERE S1.GPA > S2.GPA;
+
+*query is fundamentally wrong. cannot write it by using just joins. Finds all students, such that there is some
+other student whose GPA is lower. Find all the GPAs except the lowest GPA.
+
+
+e.g. (3) Find the student with the highest GPA - using ALL
+
+SELECT sID, sName, GPA
+FROM Student
+WHERE GPA >= ALL (              /*ALL tells us instead of telling us whether the value is in or not in, it checks whether the value has a certain relationship with ALL the relationship 
+                  SELECT GPA    /*is GPA greater or equal than all of the elements of the subquery that returns the GPA of all students
+                  FROM Student);
+
+*if the student's GPA is greater or equal to all the GPA from Student, then the student's GPA is the highest
+
+
+e.g. (4) Find the student with highest GPA - use greater than ALL.
+
+*ALL - check whether the value has a relationship with all of the result of the subquery.
+*ANY - companion, says you must just satisfy with at least one element of the set.
+
+SELECT sName
+FROM Student S1
+WHERE GPA > ALL (
+                 SELECT GPA 
+                 FROM Student S2
+                 WHERE S2.sID <> S1.sID);
+                 
+*We get an empty result - query is incorrect. This looks for all student that has HIGHEST. But we have 4 students with 3.9 GPA.
+Therefore, none of them will satisfy the query. If every student's GPA was unique, then this query will work.
+
+
+e.g. (1) Find the college with highest enrollment - using ALL
+
+SELECT cName, enrollment
+FROM College C1
+WHERE enrollment > ALL (
+                          SELECT enrollment
+                          FROM College C2             /*need to create C2 so we can put WHERE c1.cname <> c2.cname
+                          WHERE C1.cName <> C2.cName);
+
+e.g. (2) Find the college with highest enrollment - using ANY
+
+SELECT cName, enrollment
+FROM College C1
+WHERE NOT enrollment <= ANY (
+                          SELECT enrollment
+                          FROM College C2
+                          WHERE C1.cName <> C2.cName);
+
+*Get the college that is NOT the case that the enrollment is less than or equal to any other college
+In other words, there is no other college with a larger enrollment.
+**Predicate logic. Equivalent.
+
+
+e.g. Find students who are not from the smallest high school - using ANY
+
+SELECT sID, sName, sizeHS
+FROM Student
+WHERE sizeHS > ANY (SELECT sizeHS
+                    FROM Student);
+                    
+*SQLite does not support ALL or ANY operator - we can use EXISTS or NOT EXISTS to get around this
 
 SELECT sID, sName, sizeHS
 FROM Student S1
 WHERE EXISTS (                      /*look for a student, where there exists
-    SELECT * FROM Student S2        /*some other student S2 whose HS is smaller than the student we return
-    WHERE S2.sizeHS < S1.sizeHS); 
-    
+              SELECT * 
+              FROM Student S2       /*some other student S2 whose HS is smaller than the student we return
+              WHERE S2.sizeHS < S1.sizeHS); 
+
+*ANY or ALL are very convenient, but they are not necessary. We can use EXISTS or NOT EXISTS.
+
+
+e.g. Students who applied to CS but not EE - using ANY 
+
+SELECT sID, sName
+FROM Student
+WHERE sID = ANY (SELECT sID FROM Apply WHERE major = 'CS')
+  AND sID <> ANY (SELECT sID FROM Apply WHERE major = 'EE');
+
+
+*wrong answer. This query asks for students where their ID is in the set of ID in CS.
+sID <> ANY - we want the condition to check whether there is any element
+in the set of EE, that is not equal to the sID. This condition is satisfied as long
+as there is ANYBODY who applied to EE that is not equal to the student we're looking at.
+That is commonly the case.
+
+Quick tricky to use ANY or ALL operators to get the answer all the time.
+
+SELECT sID, sName
+FROM Student
+WHERE sID = ANY (SELECT sID FROM Apply WHERE major = 'CS')
+  AND NOT sID <> ANY (SELECT sID FROM Apply WHERE major = 'EE');
+
+*For each member of the set of EE application, that value is NOT equal to the sID
+of the student we are going to retrieve.
+
 ------------------------------------------------------------------------------------------------------------
 Subqueries in FROM and SELECT clauses
 
