@@ -710,79 +710,150 @@ GROUP BY cName, major;
 
 e.g. Find difference between min and max of GPA (spread) or find largest spread 
 
-SELECT MAX(mx-mn)
-FROM (SELECT cName, major, MIN(GPA) AS mn, MAX(GPA) AS mx
-      FROM Student, Apply
-      WHERE Student.sID = Apply.sID
-      GROUP BY cName, major) M;
+1st step: take above query and put it in the FROM clause, and call it M
 
-e.g. this example is to show subtleties of the group by clause 
-query finds the number of colleges that have been applied to by each student.
+FROM(SELECT cName, major, MIN(GPA), MAX(GPA)
+FROM Student, Apply
+WHERE Student.sID = Apply.sID
+GROUP BY cName, major) AS M;
+
+2nd step: In the SELECT clause, we can now access the aggregate here. And call MIN(GPA) as MN, and MAX(GPA) as MX
+
+SELECT mx-mn                      /*get list of spreads of max and min GPA for each college and major*/
+FROM(SELECT cName, major, MIN(GPA) AS mn, MAX(GPA) AS mx
+FROM Student, Apply
+WHERE Student.sID = Apply.sID
+GROUP BY cName, major) AS M;      /*AS M might not be needed.... - yepp not needed in SQLite*/
+
+3rd step: SELECT the MAX for the largest spread
+
+SELECT MAX(mx-mn)                      /*get list of spreads of max and min GPA for each college and major*/
+FROM(SELECT cName, major, MIN(GPA) AS mn, MAX(GPA) AS mx
+FROM Student, Apply
+WHERE Student.sID = Apply.sID
+GROUP BY cName, major) AS M;      /*AS M might not be needed.... - yepp not needed in SQLite*/
+
+
+e.g. Introduces subtleties of the GROUP BY clause.
+Find the number of colleges that have been applied to by each student.
 
 SELECT Student.sID, sName, COUNT(DISTINCT cNAME)
 FROM Student, Apply
 WHERE Student.sID = Apply.sID
 GROUP BY Student.sID
 
-*if we choose to select an attribute that is not in the one of the grouping
+*The above worked out fine in this case. But we will see in the next example that adding an attribute to SELECT clause
+in case of GROUP BY may make it strange. It worked nicely in this case is because when we GROUPED BY sID, within each group
+we have the same student name. Example for sID 123, we have all Amy, sID 345, we have all Craig. So when we choose sName in the 
+SELECT clause in the GROUP BY query, it was okay because for each group, we had the same name of the student. When that is not the case,
+we should presumably get an error, but not all servers do that.
+
+*If we choose to select an attribute that is not in the one of the grouping
 attributes, then it chooses a random value
 
-*there may be students who have not applied to any colleges, and they will not be 
-represented in the results because they will not be in the result of the join
+
+e.g. Lets say we are not only interested in finding the studetn name, but we are further going to add a college name
+
+SELECT Student.sID, sName, COUNT(DISTINCT cName), cName
+FROM Student, Apply
+WHERE Student.sID = Apply.sID
+GROUP BY Student.sID;
+
+*For example, student ID 123, Amy, has applied to 3 distinct colleges, but for some reason cName randomly returns only Stanford...
+ERROR/ISSUE.
+
+*What this system is actually doing, is that when we include in the SELECT clause of a GROUPING query, 
+and we put in the SELECT clause an attribute that is not one of the GROUPING attributes, it CHOOSES a RANDOM VALUE
+from the group to include!!!! In the case of sName, the random value was always the same because the sName was always
+the same for the same sID. However, for the cName, that is not the case. So it chose a random value among the colleges.
+SQLite and MYSQL allows this behavior. Postgresql will throw an error in this case. 
+
+
+e.g. Find number of colleges applied to by each student.
+
+SELECT Student.sID, COUNT(DISTINCT cName0
+FROM Student, Apply
+WHERE Student.sID = Apply.sID
+GROUP BY Student.sID;
+
+*now.... there may be students in the DB who have not applied to any colleges, and they will not be 
+represented in the results because they will not be in the result of the join. JOIN leaves out the NULL values.
+
+e.g. What if we wanted toa ctually find the student IDs who haven't applied to anywhere and include a zero in the result.
+
+Therefore, we need this query:
 
 SELECT Student.sID, COUNT(DISTINCT cName)
 FROM Student, Apply
 WHERE Student.sID = Apply.sID 
 GROUP BY Student.sID
+
 UNION
-SELECT sID, 0                   /*students that have not applied to any colleges will return 0
+
+SELECT sID, 0                     /*students that have not applied to any colleges will return 0 - return sID and 0 if meets condition*/
 FROM Student
-WHERE Student.sID NOT IN (SELECT sID FROM Apply);
+WHERE Student.sID NOT IN (        /*sID NOT IN the set of sID in Apply table relation*/ 
+                          SELECT sID 
+                          FROM Apply);
 
 
-e.g. HAVING clause - only used in conjunction with aggregation
-*HAVING clause allows us to apply conditions to the results of aggregate functions
-HAVING clause is entire group
+e.g. The last clause to introduce: HAVING clause - only used in conjunction with aggregation
+*HAVING clause allows us to APPLY conditions to the results of aggregate functions. HAVING clause is entire group
 WHERE applies to one tuple at a time
 
-Find colleges with fewer than 5 applications
+e.g. Find colleges with fewer than 5 applications
 
 SELECT cName
 FROM Apply
 GROUP BY cName
 HAVING COUNT(*) < 5;
 
-*can write without having and group by clause
+*Can write without the HAVING clause and the GROUP BY clause
+
+e.g.
 
 SELECT DISTINCT cName
-FROM Apply A1       /*looking at each application record
-WHERE 5 > (SELECT COUNT(*) FROM Apply A2 WHERE A2.cName = A1.cName); /*check number of other application to same college and count them and see if the number is less than 5
+FROM Apply A1                         /*add a table variable - A1*/
+WHERE 5 > (
+          SELECT COUNT(*) 
+          FROM Apply A2 
+          WHERE A2.cName = A1.cName); /*check number of other application to same college and count them and see if the number is less than 5
 
-*can re-write every GROUP BY and HAVING without using them
 
-e.g. Fewer than 5 applicants (not application) - instead of counting the # of apply
-tuples for each college, count # of distinct student ID that appear in the group of apply tuple for that college
+*Look at each application record, now named A1. And we are checking whether the number of other applications to to the same college
+(A2.cName = A1.cName) and COUNT them, and we're going to see if that number is less than 5. 
+
+
+*****Can re-write every GROUP BY and HAVING without using them!!!****
+
+
+e.g. Fewer than 5 applicants (not application) - instead of counting the number of apply tuples for each college, 
+we count the number of distinct student ID that appear in the group of apply tuple for that college.
 
 SELECT cName
 FROM Apply
 GROUP BY cName
 HAVING COUNT (DISTINCT sID) < 5;
 
-*Cornell has at least 5 applications but fewer than 5 applicants.... 
+*Cornell has at least 5 applications but fewer than 5 applicants... so this means at least one applicant has applied to Cornell
+twice or more. i.e. an applicant applied to Cornell but for different majors.
 
 
-e.g. Find all majors represented in the DB where the applicant's max GPA is below the average
+e.g. Find all majors represented in the DB where the applicant's MAX(GPA) of a student applying for that major
+is below the average GPA in the DB.
 
 SELECT major
 FROM Student, Apply
 WHERE Student.sID = Apply.sID
-GROUP BY major     /*look at major one at a time
-HAVING MAX (GPA) < (SELECT AVG(GPA) FROM Student);
+GROUP BY major                                      /*GROUP BY the major, so we can look at each major one at a time*/
+HAVING MAX(GPA) < (SELECT AVG(GPA)                  /*Within the major, we look at the maximum GPA of a student applying for that major
+                    FROM Student);                    and we check whether its lower than the average GPA in the student relation*/
 
-bioengineering and psychology has applicants whose highest GPA is lower than the average GPA
+
+*Bioengineering and psychology has applicants whose highest GPA is lower than the average GPA in the DB.*/
 
 
-----------------
+---------------------------------------------
 NULL values
 
 
