@@ -505,7 +505,7 @@ appear in SELECT clause initially.
 GROUP BY - partition into groups 
 HAVING conditions - test filters on results of aggregate values - apply to groups that we generated from GROUP BY clause
 
-e.g. computer average of GPA - will calculate average of all the rows
+e.g. compute average of GPA - will calculate average of all the rows
 
 SELECT AVG(GPA)
 FROM Student;
@@ -542,7 +542,8 @@ WHERE sID IN(
              WHERE major = 'CS');
 
 
-e.g. COUNT function - simply returns the number of tuples in the result
+e.g. Count number of colleges that have enrollment larger than 15,000
+COUNT function - simply returns the number of tuples in the result
 
 1st - run it without the aggregate function - we see there are 2:
 
@@ -597,7 +598,7 @@ e.g. Compute amount by which average GPA of students applying to CS exceeds the 
 Breakdown of parts:
 
 1) Find the Apply sID who have applied to major CS, and take the sID, match it with Student table's sID. From the Student table's sID
-find the AVG(GPA) and call it avgGPA. Answer: 3.633333 (repeating 3)
+find the AVG(GPA) and call it avgGPA. Answer: 3.68
 
 Take the whole result and name it CS.
 
@@ -638,9 +639,10 @@ WHERE sID NOT IN (
                   FROM Apply
                   WHERE major = 'CS')) AS nonCS;
 
+Answer: 0.1943
 
 e.g. We can re-write this with the subquery in the SELECT clause. In the SELECT clause,
-we can write a subquery as long as it returns a SINGLE VALUE .
+we can write a subquery as long as it returns a SINGLE VALUE.
 
 Changes from previous query:
 
@@ -663,21 +665,6 @@ FROM Student;                                   /*need a FROM clause*/
 *We got the avgGPA of CS Student in the SELECT clause producing a value. We perform the subtraction as part of the SELECT clause.
 The last thing we need is something in the FROM clause.
 
-
-redid last time:
-SELECT DISTINCT(
-    SELECT avg(GPA) as avgGPA       /*average GPA of CS student in SELECT clause producing a value
-    FROM Student
-    WHERE sID IN(
-        SELECT sID
-        FROM Apply
-        WHERE major = 'CS')) -
-    (SELECT avg(GPA) as avgGPA FROM Student     /*avg GPA of NON CS student 
-     WHERE sID NOT IN(
-        SELECT sID FROM Apply WHERE major = 'CS')) AS d   /*call the result of the subtraction as d for difference
-FROM Student;
-        
-*perform subtraction as part of the SELECT clause 
 - reason for duplicates is because we computed this result once for each tuple in Student.
 
 
@@ -708,7 +695,8 @@ WHERE Student.sID = Apply.sID
 GROUP BY cName, major;
 
 
-e.g. Find difference between min and max of GPA (spread) or find largest spread 
+e.g. Find difference between min and max of GPA (spread) or find largest spread for each college and major combination
+who have applied to that college
 
 1st step: take above query and put it in the FROM clause, and call it M
 
@@ -752,7 +740,7 @@ we should presumably get an error, but not all servers do that.
 attributes, then it chooses a random value
 
 
-e.g. Lets say we are not only interested in finding the studetn name, but we are further going to add a college name
+e.g. Lets say we are not only interested in finding the student name, but we are further going to add a college name
 
 SELECT Student.sID, sName, COUNT(DISTINCT cName), cName
 FROM Student, Apply
@@ -771,7 +759,7 @@ SQLite and MYSQL allows this behavior. Postgresql will throw an error in this ca
 
 e.g. Find number of colleges applied to by each student.
 
-SELECT Student.sID, COUNT(DISTINCT cName0
+SELECT Student.sID, COUNT(DISTINCT cName)
 FROM Student, Apply
 WHERE Student.sID = Apply.sID
 GROUP BY Student.sID;
