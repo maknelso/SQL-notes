@@ -580,7 +580,7 @@ e.g. Fairly obscure- Gives us all students such that number of other students wi
 is equal to number of other students with same sizeHS
 
 SELECT *
-FROM Student S1                                          /*looks at student relation
+FROM Student S1                                          /*looks at student relation*/
 WHERE (SELECT COUNT (*) 
        FROM Student S2    
        WHERE S2.sID <> S1.sID AND S2.GPA = S1.GPA)       /*for each student, count number of other students (S2) by testing ID is different, and have same GPA*/ 
