@@ -767,16 +767,16 @@ GROUP BY Student.sID;
 *now.... there may be students in the DB who have not applied to any colleges, and they will not be 
 represented in the results because they will not be in the result of the join. JOIN leaves out the NULL values.
 
-e.g. What if we wanted toa ctually find the student IDs who haven't applied to anywhere and include a zero in the result.
+e.g. What if we wanted to actually find the student IDs who haven't applied to anywhere and include a zero in the result.
 
 Therefore, we need this query:
 
-SELECT Student.sID, COUNT(DISTINCT cName)
+SELECT Student.sID, COUNT(DISTINCT cName)   
 FROM Student, Apply
 WHERE Student.sID = Apply.sID 
 GROUP BY Student.sID
 
-UNION
+UNION                             /*need 2 and 2 to match from SELECTS top and bottom of UNION
 
 SELECT sID, 0                     /*students that have not applied to any colleges will return 0 - return sID and 0 if meets condition*/
 FROM Student
